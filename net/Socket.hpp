@@ -47,7 +47,10 @@
 #ifdef __linux__
 #define HAVE_ABSTRACT_UNIX_SOCKETS
 #endif
-
+#ifdef __FreeBSD__
+#include <pwd.h>
+#include <common/Log.hpp>
+#endif
 // Enable to dump socket traffic as hex in logs.
 // #define LOG_SOCKET_DATA ENABLE_DEBUG
 
@@ -156,6 +159,15 @@ public:
         , _type(type)
         , _isShutdown(_fd < 0)
     {
+    struct passwd *pw = getpwnam(COOL_USER_ID);
+    if(pw != nullptr)
+    {
+       setuid(pw->pw_uid);
+       setgid(pw->pw_gid);
+    } else  {
+        LOG_FTL("Cannot find user");
+    }
+
         init();
     }
 

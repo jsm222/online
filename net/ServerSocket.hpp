@@ -51,6 +51,17 @@ public:
                                                 SocketPoll& clientSocket,
                                                 std::shared_ptr<SocketFactory> factory)
     {
+#ifdef __FreeBSD__
+          struct passwd *pw = getpwnam(COOL_USER_ID);
+          if(pw != nullptr)
+          {
+              seteuid(pw->pw_uid);
+              setegid(pw->pw_gid);
+          } else{
+              fprintf(stderr,"Could not find user %s\n",COOL_USER_ID);
+              return nullptr;
+          }
+#endif
         auto serverSocket = std::make_shared<ServerSocket>(socketType, creationTime, clientSocket, std::move(factory));
 
         if (serverSocket && serverSocket->bind(type, port) && serverSocket->listen())

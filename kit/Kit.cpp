@@ -36,7 +36,13 @@
 #endif
 
 #if defined(__FreeBSD__)
+#include <sys/param.h>
+#include <sys/mount.h>
 #include <ftw.h>
+#include <sys/param.h>
+#include <sys/jail.h>
+
+#include <sys/procctl.h>
 #define FTW_CONTINUE 0
 #define FTW_STOP (-1)
 #define FTW_SKIP_SUBTREE 0
@@ -126,7 +132,7 @@ using namespace COOLProtocol;
 using JsonUtil::makePropertyValue;
 
 extern "C" { void dump_kit_state(void); /* easy for gdb */ }
-
+static int gotojail(const char* jailPath,const char* name);
 #if MOBILEAPP
 extern std::map<std::string, std::shared_ptr<DocumentBroker>> DocBrokers;
 extern std::mutex DocBrokersMutex;
@@ -2216,6 +2222,7 @@ std::shared_ptr<lok::Document> Document::load(const std::shared_ptr<ChildSession
         {
             _loKitDocument->setAllowChangeComments(viewId, true);
         }
+
         if (session->isAllowManageRedlines())
         {
             _loKitDocument->setAllowManageRedlines(viewId, true);
@@ -3714,20 +3721,46 @@ void lokit_main(
                 if (ProcSMapsFile < 0)
                     LOG_SYS("Failed to open /proc/self/smaps. Memory stats will be missing.");
             }
-
             LOG_INF("chroot(\"" << jailPathStr << "\")");
+
+#ifdef __FreeBSD__
+    seteuid(0);
+    setegid(0);
+#endif
+            LOG_INF("chroot(\"" << jailPathStr << "\")" << "as effecitve uid :"<< geteuid() << "uid" << getuid());
+#if 0
+#ifdef __FreeBSD__ // code for chrooting with a sysctl bsd.security sysctl set
+        int data = PROC_NO_NEW_PRIVS_ENABLE;
+        int er=procctl(P_PID,getpid(),PROC_NO_NEW_PRIVS_CTL,&data);
+        if(er) {
+             perror("procctl");
+        }
+#endif
+#endif
+#ifdef __FreeBSD__
+            if (gotojail(jailPathStr.c_str(),jailId.c_str()) == -1)
+#else
             if (chroot(jailPathStr.c_str()) == -1)
+#endif
             {
                 LOG_SFL("chroot(\"" << jailPathStr << "\") failed");
                 Util::forcedExit(EX_SOFTWARE);
             }
-
             if (chdir("/") == -1)
             {
                 LOG_SFL("chdir(\"/\") in jail failed");
                 Util::forcedExit(EX_SOFTWARE);
             }
-
+#ifdef __FreeBSD__
+    struct passwd *pw = getpwnam(COOL_USER_ID);
+    if(pw != nullptr)
+    {
+       seteuid(pw->pw_uid);
+       setegid(pw->pw_gid);
+    } else  {
+        LOG_FTL("Cannot find user" << COOL_USER_ID);
+    }
+#endif
 #if HAVE_LIBCAP
             if (usingMountNamespace)
             {
@@ -4205,6 +4238,7 @@ bool startURP(const std::shared_ptr<lok::Office>& LOKit, void** ppURPContext)
 /// Initializes LibreOfficeKit for cross-fork re-use.
 bool globalPreinit(const std::string &loTemplate)
 {
+
     std::string loadedLibrary;
     // we deliberately don't dlclose handle on success, make it
     // static so static analysis doesn't see this as a leak
@@ -4313,6 +4347,56 @@ void dump_kit_state()
     const std::string msg = oss.str();
     fprintf(stderr, "%s", msg.c_str()); // Log in the journal.
     LOG_WRN(msg);
+}
+static int jailmountdevfs(const char* jailPath) {
+    struct iovec* iov = (struct iovec* )malloc(sizeof(struct iovec) * 10);
+    std::string to = std::string(jailPath) +"/dev";
+    char * errmsg = (char*)malloc(sizeof(char)*255);
+    iov[0].iov_base = __DECONST(char*,"fstype");
+    iov[0].iov_len  = sizeof("fstype");
+    iov[1].iov_base = __DECONST(char*, "devfs");
+    iov[1].iov_len  = strlen("devfs") + 1;
+
+    iov[2].iov_base = __DECONST(char*,"fspath");
+    iov[2].iov_len  = sizeof("fspath");
+    iov[3].iov_base = __DECONST(char*, to.c_str());
+    iov[3].iov_len  = strlen(to.c_str()) + 1;
+
+    iov[4].iov_base = __DECONST(char*,"from");
+    iov[4].iov_len  = sizeof("from");
+    iov[5].iov_base = __DECONST(char*, "devfs");
+    iov[5].iov_len  = strlen("devfs") + 1;
+
+    iov[6].iov_base = __DECONST(char*,"errmsg");
+    iov[6].iov_len  = sizeof("errmsg");
+    iov[7].iov_base = errmsg;
+    iov[7].iov_len  = sizeof(errmsg);
+
+  iov[8].iov_base = __DECONST(char*,"ruleset");
+  iov[8].iov_len  = sizeof("ruleset");
+  iov[9].iov_base = __DECONST(char*,"4");
+  iov[9].iov_len  = sizeof("4");
+  return nmount(iov, 10, 0);
+}
+static int gotojail(const char* jailPath,const char *name) {
+    jailmountdevfs(jailPath);
+    struct iovec *iov = (struct iovec*)malloc(sizeof(struct iovec)*9);
+    int iovlen = 0;
+    iov[iovlen].iov_base = const_cast<void*>(static_cast<const void*>("path"));
+    iov[iovlen].iov_len = strlen("path")+1;
+    iovlen++;
+    iov[iovlen].iov_base =const_cast<void*>(static_cast<const void*>(jailPath));
+    iov[iovlen].iov_len = strlen(jailPath)+1;
+    iovlen++;
+    iov[iovlen].iov_base = const_cast<void*>(static_cast<const void*>("name"));
+    iov[iovlen].iov_len = strlen("name")+1;
+    iovlen++;
+    iov[iovlen].iov_base = const_cast<void*>(static_cast<const void*>(name));
+    iov[iovlen].iov_len = strlen(name)+1;
+    iovlen++;
+    if(jail_set(iov,iovlen,JAIL_CREATE|JAIL_ATTACH)<0)
+        LOG_FTL("Could not jail procces "<<errno);
+return 0;
 }
 
 /* vim:set shiftwidth=4 softtabstop=4 expandtab: */
