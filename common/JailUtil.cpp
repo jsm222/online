@@ -42,7 +42,7 @@ namespace
 {
 
 static const std::string CoolTestMountpoint = "cool_test_mount";
-
+#ifdef __linux__
 static void setdeny()
 {
     std::ofstream of("/proc/self/setgroups");
@@ -63,6 +63,7 @@ static void mapuser(uid_t origuid, uid_t newuid, gid_t origgid, gid_t newgid)
 }
 } // namespace
 
+#endif
 bool enterMountingNS(uid_t uid, gid_t gid)
 {
 #ifdef __linux__
@@ -324,7 +325,10 @@ bool tryRemoveJail(const std::string& root)
         // Unmount the tmp directory. Don't care if we fail.
         const std::string tmpPath = Poco::Path(root, "tmp").toString();
 #ifdef __FreeBSD__
-        unmount(tmpPath + "/dev");
+        LOG_TRC("unmount" << root.c_str() << "dev"  << ((unmount(Poco::Path(root,"dev").toString()) ? "Success" : "Failed")));
+        LOG_TRC("unmount" << root.c_str() << "/lo/share/template/common/presnt"  << ((unmount(Poco::Path(root,"lo/share/template/common/presnt").toString()) ? "Success" : "Failed")));
+        LOG_TRC("unmount" << root.c_str() << "/lo/share/wordbook"  << ((unmount(Poco::Path(root,"lo/share/wordbook").toString()) ? "Success" : "Failed")));
+        LOG_TRC("unmount" << root.c_str() << "/lo/share/autotext/common"  << ((unmount(Poco::Path(root,"lo/share/autotext/common").toString()) ? "Success" : "Failed")));
 #endif
         FileUtil::removeFile(tmpPath, true); // Delete tmp contents with prejudice.
         unmount(tmpPath);
@@ -549,9 +553,12 @@ namespace SysTemplate
 /// the long lifetime of our process. Also, it's unlikely
 /// that systemplate will get re-generated after installation.
 static const auto DynamicFilePaths
+#ifdef __linux__
     = { "/etc/passwd",        "/etc/group",       "/etc/host.conf", "/etc/hosts",
         "/etc/nsswitch.conf", "/etc/resolv.conf", "/etc/timezone",  "/etc/localtime" };
-
+#elif defined(__FreeBSD__)
+= {"/etc/localtime","/etc/resolv.conf"};
+#endif
 namespace
 {
 /// Copy (false) by default for KIT_IN_PROCESS.

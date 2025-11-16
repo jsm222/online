@@ -36,6 +36,7 @@
 
 #include <cerrno>
 #include <chrono>
+#include <unistd.h>
 #include <condition_variable>
 #include <cstring>
 #include <cctype>
@@ -55,6 +56,8 @@
 #include <sys/un.h>
 
 #ifdef __FreeBSD__
+#include <sys/limits.h>
+#include <unistd.h>
 #include <sys/ucred.h>
 #endif
 
@@ -1452,6 +1455,7 @@ std::shared_ptr<Socket> LocalServerSocket::accept()
         }
 #endif
 
+#if 0
         uid_t uid = getuid();
         uid_t gid = getgid();
         if (CREDS_UID(creds) != uid || CREDS_GID(creds) != gid)
@@ -1461,6 +1465,7 @@ std::shared_ptr<Socket> LocalServerSocket::accept()
             ::close(rc);
             return std::shared_ptr<Socket>(nullptr);
         }
+#endif
         std::string addr("uds-to-pid-");
         addr.append(std::to_string(CREDS_PID(creds)));
         _socket->setClientAddress(addr);
@@ -1535,8 +1540,22 @@ std::string LocalServerSocket::bind()
 #ifndef HAVE_ABSTRACT_UNIX_SOCKETS
 bool LocalServerSocket::link(std::string to)
 {
+#if defined(__linux__)
     _linkName = std::move(to);
     return ::link(_name.c_str(), _linkName.c_str()) == 0;
+
+#endif
+#if defined(__FreeBSD__)
+        _linkName = to;
+        char buf[PATH_MAX];
+        getcwd(buf,PATH_MAX);
+        std::string cwd(buf);
+        LOG_INF(_name <<cwd << " to " << to.c_str());
+        int ret = ::link((cwd+"/"+_name).c_str(), to.c_str());
+        if(ret)
+            perror("link");
+       return ret==0;
+#endif
 }
 #endif
 

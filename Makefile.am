@@ -578,7 +578,9 @@ CLEANUP_COMMAND=if test -s ./coolwsd -a -x ./coolwsd; then echo "Cleaning up..."
 endif
 
 CLEANUP_COVERAGE=rm -rf ${abs_top_srcdir}/gcov; find . -iname "*.gcda" -delete
-
+if FREEBSD
+SYSTEM_STAMP=
+else
 if HAVE_LO_PATH
 
 SYSTEM_STAMP = @SYSTEMPLATE_PATH@/system_stamp
@@ -768,7 +770,7 @@ else
 SYSTEM_STAMP =
 
 endif
-
+endif
 .PHONY: cleanup setup-wsd
 
 if ENABLE_LIBFUZZER
@@ -776,10 +778,12 @@ ALL_LOCAL_DEPS=
 else
 ALL_LOCAL_DEPS=coolwsd
 endif
-
+if FREEBSD
+all-local: ${ALL_LOCAL_DEPS}
+else
 all-local: $(ALL_LOCAL_DEPS) @JAILS_PATH@ @CACHE_PATH@ $(SYSTEM_STAMP)
 	@$(abs_top_srcdir)/scripts/refresh-git-hooks
-
+endif
 # just run the build without any tests
 build-nocheck: all-am
 
@@ -864,11 +868,16 @@ prettier-write: browser/node_modules
 	@$(MAKE) -C browser prettier-write
 
 install-exec-hook:
+if FREEBSD
+	cd $(DESTDIR)$(bindir) && \
+	chmod +s coolmount && \
+	chmod +s coolforkit-caps
+else
 	cd $(DESTDIR)$(bindir) && \
 	$(LN_S) coolconfig loolconfig && \
 	$(LN_S) coolwsd loolwsd && \
 	$(LN_S) coolwsd-systemplate-setup loolwsd-systemplate-setup
-
+endif
 stress_file=$(abs_top_srcdir)/test/data/hello-world.odt
 trace_dir=$(abs_top_srcdir)/test/traces
 stress:

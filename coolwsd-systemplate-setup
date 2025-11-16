@@ -1,4 +1,17 @@
 #!/usr/bin/env bash
+recurse_libs() {
+for l in $1
+do
+	echo $l
+	L=$(readelf -d $1 | awk '/NEEDED.*Shared library\:/ {  sub("\\[","",$5); sub("\\]","",$5); print $5}' | xargs -n1 -I[] find /lib /usr/lib /usr/local/lib -name [] -maxdepth 1)
+	for dep in $L
+	do
+	echo $dep
+	recurse_libs $dep
+	done
+done;
+}
+
 # set -x
 
 test $# -eq 2 || { echo "Usage: $0 <chroot template directory for system libs to create> <LO installation directory>"; exit 1; }
@@ -28,10 +41,18 @@ if [ ! `uname -s` = "FreeBSD" ]; then
     CP=cp
     REALPATH=realpath
     LOCALBASE=usr/
+    ETCFILES="hosts nsswitch.conf resolv.conf passwd group host.conf timezone localtime"
 else
     CP=gcp
     REALPATH=grealpath
     LOCALBASE=usr/local/
+    ETCFILES="resolv.conf localtime"
+    mkdir -p "${CHROOT}/etc"
+    cat /etc/master.passwd |egrep '^(root|toor|collaboraonline)' | awk 'BEGIN {FS=":"} { sub(".*","*",$2); print $1":"$2":"$3":"$4":"$5":"$6":"$7":"$8":"$9":"$10}' > "${CHROOT}/etc/master.passwd"
+    cat /etc/passwd |egrep "^(root|toor|collaboraonline)" > "${CHROOT}/etc/passwd"
+    echo 'wheel:*:0:root' > "${CHROOT}/etc/group"
+    cat /etc/group |egrep "^(collaboraonline)" >> "${CHROOT}/etc/group"
+    pwd_mkdb -d "${CHROOT}/etc" "${CHROOT}/etc/master.passwd"
 fi
 
 cd / || exit 1
@@ -75,22 +96,34 @@ find etc/pki/tls/certs/ca-bundle.crt \
 
 # Go through the LO shared objects and check what system libraries
 # they link to.
+if [ ! `uname -s` = "FreeBSD" ]; then
 find $INSTDIR -name 'xpdfimport' |
 while read file; do
     ldd $file 2>/dev/null
 done |
 grep -v dynamic | cut -s -d " " -f 3 | grep -E '^(/lib|/usr)' | sort -u | sed -e 's,^/,,'
-
+else
+for l in $(find /usr/local/share/collabora-office-online/instdir/program/*.so)
+        do
+        echo $l
+                if [ "$(file -b --mime-type $l)" = "application/x-sharedlib" ]; then
+			echo "Finding deps of $l" > /dev/stderr
+                        recurse_libs $l
+                fi
+       done | sort | uniq | grep -v 'share/collabora-office-online/instdir/program/'
+fi
 ) |
-
 # Can't use -l because then symlinks won't be handled well enough.
 # This will now copy the file a symlink points to, but whatever.
 cpio -p -d -L $CHROOT
-
+if [ `uname -s` = "FreeBSD" ]; then  #copy extra libs not found above (pdf export fails without them)
+pkg query %b nss | xargs -n1 -I[]  find /usr/local/lib -name  [] -exec cp -iv {} "${CHROOT}/usr/local/lib/" \;
+pkg query %B nss | xargs -n1 -I[]  find /usr/local/lib -name  [] -exec cp -iv {} "${CHROOT}/usr/local/lib/" \;
+fi
 # Link the dynamic files, replacing any existing.
 rm -f $CHROOT/etc/copied
 mkdir -p $CHROOT/etc/
-for file in hosts nsswitch.conf resolv.conf passwd group host.conf timezone localtime
+for file in  $ETCFILES
 do
     # echo "Linking/Copying /etc/$file"
     # Prefer hard-linking, fallback to just copying (do *not* use symlinking because that would be relative to the jail).

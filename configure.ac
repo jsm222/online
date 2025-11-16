@@ -92,7 +92,7 @@ AC_LANG_PUSH([C++])
 # check for python modules
 for MODULE in lxml polib; do
     AC_MSG_CHECKING([for ${MODULE} for python3])
-    if /usr/bin/env python3 -c "import ${MODULE}" 2> /dev/null ; then
+    if /usr/local/bin/python3.11 -c "import ${MODULE}" 2> /dev/null ; then
         AC_MSG_RESULT([yes])
     else
         AC_MSG_RESULT([no])
@@ -1360,7 +1360,7 @@ AS_IF([test `uname -s` != Darwin],
                       [dl dld],
                       [],
                       [AC_MSG_ERROR([dlopen not found])])])
-
+AM_CONDITIONAL([FREEBSD], [test `uname -s` = FreeBSD])
 AS_IF([test "$ENABLE_IOSAPP" != "true" -a "$ENABLE_ANDROIDAPP" != "true" -a "$host_os" != "emscripten"],
       [PKG_CHECK_MODULES([PNG], [libpng])
 dnl    deflated HTTP / web-page serving
@@ -1637,7 +1637,7 @@ AS_IF([test `uname -s` = "FreeBSD"],
       AC_CHECK_LIB(iconv, libiconv_open, [], [AC_MSG_ERROR([No. Install 3rd-party libiconv.])]))
 
 AS_IF([test `uname -s` = "FreeBSD"],
-      [LIBS="$LIBS -lexecinfo -lz -liconv"])
+      [LIBS="$LIBS -lexecinfo -lz -liconv -lpthread"])
 
 # need this after the other stuff that uses the compiler because we don't want to run configure-tests with the plugins enabled
 AS_IF([test -n "$with_compiler_plugins"],

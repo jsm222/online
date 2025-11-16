@@ -264,7 +264,6 @@ int domount(int argc, const char* const* argv)
                 return EX_USAGE;
             }
         }
-
         if (!isDir && !isCharDev)
         {
             fprintf(stderr,
@@ -292,6 +291,70 @@ int domount(int argc, const char* const* argv)
             return EX_USAGE;
         }
 
+#ifdef __FreeBSD__
+    if (strcmp(option, "-b") == 0 || strcmp(option,"-r") == 0)
+    {
+        if(strcmp(option,"-r") == 0)
+        {
+            struct statfs buf;
+            if(statfs(target,&buf)==0)
+            {
+                if(strcmp(source,buf.f_mntfromname)==0)
+                {
+                    if(unmount(target,0))
+                    {
+                        perror("unmount");
+                    }
+                }
+            }
+    }
+
+    char errmsg[255];
+    char *fstype = (char*)malloc(sizeof(char)*255);
+    fstype = (char*)"nullfs\0";
+
+
+    errmsg[0] = '\0';
+    int iovlen=0;
+    struct iovec *iov = (struct iovec*)malloc(sizeof(struct iovec)*9);
+    if (strcmp(option, "-r") == 0)
+    {
+        (iov)[iovlen].iov_base = (void*)"ro";
+        (iov)[iovlen].iov_len = strlen("ro")+1;
+        iovlen++;
+        (iov)[iovlen].iov_base = (void*)("");
+        (iov)[iovlen].iov_len = iovlen;
+        iovlen++;
+    }
+        (iov)[iovlen].iov_base = (void*)"fstype";
+        (iov)[iovlen].iov_len = strlen("fstype") + 1;
+        iovlen++;
+        (iov)[iovlen].iov_base = (void*)fstype;
+        (iov)[iovlen].iov_len = strlen(fstype) + 1;
+        iovlen++;
+        (iov)[iovlen].iov_base = (void*)"fspath";
+        (iov)[iovlen].iov_len = strlen("fspath") + 1;
+        iovlen++;
+        (iov)[iovlen].iov_base = (void*)target;
+        (iov)[iovlen].iov_len = strlen(target) + 1;
+        iovlen++;
+        (iov)[iovlen].iov_base = (void*)"target";
+        (iov)[iovlen].iov_len = strlen("target") + 1;
+        iovlen++;
+        (iov)[iovlen].iov_base = (void*)source;
+        (iov)[iovlen].iov_len = strlen(source) +1;
+        iovlen++;
+        (iov)[iovlen].iov_base = (void*)"errmsg";
+        (iov)[iovlen].iov_len = sizeof(errmsg);
+
+    if (nmount(iov, iovlen, 0) <0)
+        {
+            fprintf(stderr,"iovlen = %d\n errmsg:%s",iovlen,errmsg);
+            perror("nmount");
+            return 1;
+        }
+
+#else
         // Mount the source path as the target path.
         // First bind to mount an existing directory node into the chroot.
         // MS_BIND ignores other flags.
@@ -338,6 +401,7 @@ int domount(int argc, const char* const* argv)
                         strerror(errno));
                 return EX_SOFTWARE;
             }
+#endif
         }
     }
     else
