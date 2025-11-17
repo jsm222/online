@@ -87,7 +87,7 @@ AC_LANG_PUSH([C++])
 # check for python modules
 for MODULE in lxml polib; do
     AC_MSG_CHECKING([for ${MODULE} for python3])
-    if /usr/local/bin/python3.11 -c "import ${MODULE}" 2> /dev/null ; then
+    if /usr/bin/env python3 -c "import ${MODULE}" 2> /dev/null ; then
         AC_MSG_RESULT([yes])
     else
         AC_MSG_RESULT([no])

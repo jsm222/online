@@ -831,9 +831,6 @@ prettier-write: browser/node_modules
 
 install-exec-hook:
 if FREEBSD
-	cd $(DESTDIR)$(bindir) && \
-	chmod +s coolmount && \
-	chmod +s coolforkit-caps
 else
 	cd $(DESTDIR)$(bindir) && \
 	$(LN_S) coolconfig loolconfig && \
