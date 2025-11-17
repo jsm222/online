@@ -68,6 +68,7 @@ find etc/ld.so.* \
      lib/*/nss/*.so \
      lib/libresolv* lib64/libresolv* lib/*/libresolv* \
      var/cache/fontconfig \
+     var/db/fontconfig \
      etc/fonts \
      usr/lib/locale/en_US.utf8 \
      usr/lib/locale/C.UTF-8 \
@@ -103,7 +104,7 @@ while read file; do
 done |
 grep -v dynamic | cut -s -d " " -f 3 | grep -E '^(/lib|/usr)' | sort -u | sed -e 's,^/,,'
 else
-for l in $(find /usr/local/share/collabora-office-online/instdir/program/*.so)
+for l in $(find ${INSTDIR}/program/*.so)
         do
         echo $l
                 if [ "$(file -b --mime-type $l)" = "application/x-sharedlib" ]; then
