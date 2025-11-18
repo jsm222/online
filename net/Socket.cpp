@@ -1455,7 +1455,7 @@ std::shared_ptr<Socket> LocalServerSocket::accept()
         }
 #endif
 
-#if 0
+        LOG_DBG("euid" << geteuid() <<"egid "<< getegid() << "uid:" << getuid()<< "gid:" << getgid());
         uid_t uid = getuid();
         uid_t gid = getgid();
         if (CREDS_UID(creds) != uid || CREDS_GID(creds) != gid)
@@ -1465,7 +1465,6 @@ std::shared_ptr<Socket> LocalServerSocket::accept()
             ::close(rc);
             return std::shared_ptr<Socket>(nullptr);
         }
-#endif
         std::string addr("uds-to-pid-");
         addr.append(std::to_string(CREDS_PID(creds)));
         _socket->setClientAddress(addr);
