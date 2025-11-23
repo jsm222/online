@@ -324,7 +324,7 @@ bool tryRemoveJail(const std::string& root)
     {
         // Unmount the tmp directory. Don't care if we fail.
         const std::string tmpPath = Poco::Path(root, "tmp").toString();
-#ifdef __FreeBSD0__
+#ifdef __FreeBSD__
         bool  res = unmount(Poco::Path(root,"dev").toString());
         LOG_TRC("unmount" << root.c_str() << "dev"  << (res ? " Succes" : " failed"));
         res = unmount(Poco::Path(root,"lo/share/template/common/presnt").toString());
