@@ -302,11 +302,15 @@ bool tryRemoveJail(const std::string& root)
     {
         // Unmount the tmp directory. Don't care if we fail.
         const std::string tmpPath = Poco::Path(root, "tmp").toString();
-#ifdef __FreeBSD__
-        LOG_TRC("unmount" << root.c_str() << "dev"  << ((unmount(Poco::Path(root,"dev").toString()) ? "Success" : "Failed")));
-        LOG_TRC("unmount" << root.c_str() << "/lo/share/template/common/presnt"  << ((unmount(Poco::Path(root,"lo/share/template/common/presnt").toString()) ? "Success" : "Failed")));
-        LOG_TRC("unmount" << root.c_str() << "/lo/share/wordbook"  << ((unmount(Poco::Path(root,"lo/share/wordbook").toString()) ? "Success" : "Failed")));
-        LOG_TRC("unmount" << root.c_str() << "/lo/share/autotext/common"  << ((unmount(Poco::Path(root,"lo/share/autotext/common").toString()) ? "Success" : "Failed")));
+#ifdef __FreeBSD0__
+        bool  res = unmount(Poco::Path(root,"dev").toString());
+        LOG_TRC("unmount" << root.c_str() << "dev"  << (res ? " Succes" : " failed"));
+        res = unmount(Poco::Path(root,"lo/share/template/common/presnt").toString());
+        LOG_TRC("unmount" << root.c_str() << "/lo/share/template/common/presnt"  << (res  ? " Success" : " Failed"));
+        res = unmount(Poco::Path(root,"lo/share/wordbook").toString());
+        LOG_TRC("unmount" << root.c_str() << "/lo/share/wordbook"  << (res ? " Success" : " Failed"));
+        res = unmount(Poco::Path(root,"lo/share/autotext/common").toString());
+        LOG_TRC("unmount" << root.c_str() << "/lo/share/autotext/common"  << (res ? " Success" : " Failed"));
 #endif
         FileUtil::removeFile(tmpPath, true); // Delete tmp contents with prejudice.
         unmount(tmpPath);
