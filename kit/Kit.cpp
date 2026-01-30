@@ -3728,8 +3728,8 @@ void lokit_main(
             LOG_INF("chroot(\"" << jailPathStr << "\")");
 
 #ifdef __FreeBSD__
-    seteuid(0);
     setegid(0);
+    seteuid(0);
 #endif
             LOG_INF("chroot(\"" << jailPathStr << "\")" << "as effecitve uid :"<< geteuid() << "uid" << getuid());
 #if 0
@@ -3759,8 +3759,8 @@ void lokit_main(
     struct passwd *pw = getpwnam(COOL_USER_ID);
     if(pw != nullptr)
     {
-       seteuid(pw->pw_uid);
        setegid(pw->pw_gid);
+       seteuid(pw->pw_uid);
     } else  {
         LOG_FTL("Cannot find user" << COOL_USER_ID);
     }

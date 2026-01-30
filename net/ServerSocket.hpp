@@ -55,8 +55,8 @@ public:
           struct passwd *pw = getpwnam(COOL_USER_ID);
           if(pw != nullptr)
           {
-              seteuid(pw->pw_uid);
               setegid(pw->pw_gid);
+              seteuid(pw->pw_uid);
           } else{
               fprintf(stderr,"Could not find user %s\n",COOL_USER_ID);
               return nullptr;

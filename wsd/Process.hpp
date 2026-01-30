@@ -163,7 +163,11 @@ public:
 #if !MOBILEAPP
         try
         {
+#if defined(__FreeBSD__)
+            return _pid > 1 && _ws; // cannot signal jailed process with same uid since 15.
+#else
             return _pid > 1 && _ws && ::kill(_pid, 0) == 0;
+#endif
         }
         catch (const std::exception&)
         {
