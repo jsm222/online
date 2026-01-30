@@ -997,8 +997,8 @@ int forkit_main(int argc, char** argv)
     struct passwd *pw = getpwnam(COOL_USER_ID);
     if(pw != nullptr)
     {
-        seteuid(pw->pw_uid);
         setegid(pw->pw_gid);
+        seteuid(pw->pw_uid);
     } else  {
         LOG_FTL("Cannot find user" << COOL_USER_ID);
     }

@@ -162,8 +162,8 @@ public:
     struct passwd *pw = getpwnam(COOL_USER_ID);
     if(pw != nullptr)
     {
-       setuid(pw->pw_uid);
        setgid(pw->pw_gid);
+       setuid(pw->pw_uid);
     } else  {
         LOG_FTL("Cannot find user");
     }
