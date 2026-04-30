@@ -61,9 +61,10 @@ static void mapuser(uid_t origuid, uid_t newuid, gid_t origgid, gid_t newgid)
         of << newgid << " " << origgid << " 1";
     }
 }
-} // namespace
 
 #endif
+} // namespace
+
 bool enterMountingNS(uid_t uid, gid_t gid)
 {
 #ifdef __linux__
